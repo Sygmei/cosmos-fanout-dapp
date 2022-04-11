@@ -10,6 +10,7 @@ import {
   convertFromMicroDenom,
   convertDenomToMicroDenom,
 } from 'util/conversion'
+import { FanoutState } from 'types/contract';
 
 const PUBLIC_CHAIN_NAME = process.env.NEXT_PUBLIC_CHAIN_NAME
 const PUBLIC_STAKING_DENOM = process.env.NEXT_PUBLIC_STAKING_DENOM || 'ujuno'
@@ -20,10 +21,14 @@ const Send: NextPage = () => {
   const [balance, setBalance] = useState('')
   const [loadedAt, setLoadedAt] = useState(new Date())
   const [loading, setLoading] = useState(false)
-  const [recipientAddress, setRecipientAddress] = useState('')
-  const [sendAmount, setSendAmount] = useState('')
+  const [beneficiaryAddress, setBeneficiaryAddress] = useState('')
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
+  const [onlyOwnerCanRegisterBeneficiary, setOnlyOwnerCanRegisterBeneficiary] = useState(false);
+
+  signingClient?.queryContractSmart(PUBLIC_CONTRACT_ADDRESS, { get_state: {} }).then((contractState: FanoutState) => {
+    setOnlyOwnerCanRegisterBeneficiary(contractState.only_owner_can_register_beneficiary);
+  });
 
   useEffect(() => {
     if (!signingClient || walletAddress.length === 0) {
@@ -53,17 +58,18 @@ const Send: NextPage = () => {
     setSuccess('')
     setLoading(true)
 
-    let contractKey: Uint8Array = new Uint8Array([99, 111, 110, 116, 114, 97, 99, 116, 95, 105, 110, 102, 111]);
-    signingClient?.queryContractRaw(PUBLIC_CONTRACT_ADDRESS, contractKey).then((value) => {
-      console.log("value", value);
-    }).catch((error) => {
-      console.log("contract_key error", error);
-    })
+    let registerBeneficiaryMsg = onlyOwnerCanRegisterBeneficiary ? { register_beneficiary_as_owner: { beneficiary: beneficiaryAddress } } : { register_beneficiary: {} };
 
-    signingClient?.execute(walletAddress, PUBLIC_CONTRACT_ADDRESS, { register_beneficiary: {} }, "auto").then((resp) => {
+    console.log("Register msg", registerBeneficiaryMsg);
+    signingClient?.execute(walletAddress, PUBLIC_CONTRACT_ADDRESS, registerBeneficiaryMsg, "auto").then((resp) => {
       console.log('resp', resp);
 
-      const message = `Success! Registered address ${walletAddress} as a beneficiary to receive ${convertFromMicroDenom(
+      let realBeneficiary = walletAddress;
+      if (registerBeneficiaryMsg.register_beneficiary_as_owner) {
+        realBeneficiary = registerBeneficiaryMsg.register_beneficiary_as_owner.beneficiary;
+      }
+
+      const message = `Success! Registered address ${realBeneficiary} as a beneficiary to receive ${convertFromMicroDenom(
         PUBLIC_STAKING_DENOM
       )}.`
 
@@ -89,6 +95,18 @@ const Send: NextPage = () => {
           {walletAddress}
         </pre>
       </p>
+      {onlyOwnerCanRegisterBeneficiary && (
+        <div className="flex w-full max-w-xl">
+          <input
+            type="text"
+            id="recipient-address"
+            className="input input-bordered focus:input-primary input-lg rounded-full flex-grow font-mono text-center text-lg"
+            placeholder={`${PUBLIC_CHAIN_NAME} beneficiary wallet address...`}
+            onChange={(event) => setBeneficiaryAddress(event.target.value)}
+            value={beneficiaryAddress}
+          />
+        </div>
+      )}
       <div className="flex w-full max-w-xl">
         <button
           className="mt-4 md:mt-0 btn btn-primary btn-lg font-semibold hover:text-base-100 text-2xl rounded-full flex-grow"

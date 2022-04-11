@@ -2,9 +2,23 @@ import type { NextPage } from 'next'
 import Link from 'next/link'
 import WalletLoader from 'components/WalletLoader'
 import { useSigningClient } from 'contexts/cosmwasm'
+import { useState } from 'react'
+import { FanoutState } from 'types/contract'
+
+const PUBLIC_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_FANOUT_CONTRACT_ADDRESS || ""
+
 
 const Home: NextPage = () => {
-  const { walletAddress } = useSigningClient()
+  const { walletAddress, signingClient } = useSigningClient()
+  const [showRegisterBeneficiary, setShowRegisterBeneficiary] = useState(false);
+
+  signingClient?.queryContractSmart(PUBLIC_CONTRACT_ADDRESS, { get_state: {} }).then((contractState: FanoutState) => {
+    if (!contractState.only_owner_can_register_beneficiary || contractState.owner == walletAddress) {
+      setShowRegisterBeneficiary(true);
+    } else {
+      setShowRegisterBeneficiary(false);
+    }
+  });
 
   return (
     <WalletLoader>
@@ -30,14 +44,14 @@ const Home: NextPage = () => {
             </p>
           </a>
         </Link>
-        <Link href="/register" passHref>
+        {showRegisterBeneficiary && (<Link href="/register" passHref>
           <a className="p-6 mt-6 text-left border border-secondary hover:border-primary w-96 rounded-xl hover:text-primary focus:text-primary-focus">
             <h3 className="text-2xl font-bold">Register as a beneficiary &rarr;</h3>
             <p className="mt-4 text-xl">
               Register as a beneficiary to receive funds from the donations
             </p>
           </a>
-        </Link>
+        </Link>)}
       </div>
     </WalletLoader>
   )
