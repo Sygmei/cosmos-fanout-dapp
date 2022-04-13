@@ -4,6 +4,7 @@ import { StdFee, Coin } from '@cosmjs/amino'
 import { calculateFee, GasPrice } from "@cosmjs/stargate";
 
 import WalletLoader from 'components/WalletLoader'
+import BeneficiariesList from 'components/BeneficiariesList'
 import { useSigningClient } from 'contexts/cosmwasm'
 import {
   convertMicroDenomToDenom,
@@ -25,9 +26,11 @@ const Send: NextPage = () => {
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
   const [onlyOwnerCanRegisterBeneficiary, setOnlyOwnerCanRegisterBeneficiary] = useState(false);
+  const [isOwner, setOwner] = useState(false);
 
   signingClient?.queryContractSmart(PUBLIC_CONTRACT_ADDRESS, { get_state: {} }).then((contractState: FanoutState) => {
     setOnlyOwnerCanRegisterBeneficiary(contractState.only_owner_can_register_beneficiary);
+    setOwner(contractState.owner == walletAddress);
   });
 
   useEffect(() => {
@@ -85,6 +88,7 @@ const Send: NextPage = () => {
   return (
     <WalletLoader loading={loading}>
       <p className="text-2xl">Your wallet has {balance}</p>
+      {isOwner && (<p>You are the owner of this smart-contract</p>)}
 
       <h1 className="text-5xl font-bold my-8">
         Click below to receive {convertFromMicroDenom(PUBLIC_STAKING_DENOM)} from donations
@@ -157,6 +161,14 @@ const Send: NextPage = () => {
           </div>
         )}
       </div>
+      <h2 className="text-5xl font-bold my-8">
+        Current beneficiaries
+      </h2>
+      <BeneficiariesList target="current"></BeneficiariesList>
+      <h2 className="text-5xl font-bold my-8">
+        Removed beneficiaries
+      </h2>
+      <BeneficiariesList target="removed"></BeneficiariesList>
     </WalletLoader>
   )
 }

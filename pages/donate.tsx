@@ -9,6 +9,7 @@ import {
   convertFromMicroDenom,
   convertDenomToMicroDenom,
 } from 'util/conversion'
+import { BeneficiaryListResponse } from 'types/contract'
 
 const PUBLIC_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_FANOUT_CONTRACT_ADDRESS || ""
 const PUBLIC_CHAIN_NAME = process.env.NEXT_PUBLIC_CHAIN_NAME
@@ -23,6 +24,7 @@ const Send: NextPage = () => {
   const [sendAmount, setSendAmount] = useState('')
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
+  const [beneficiariesAmount, setBeneficiariesAmount] = useState(0);
 
   useEffect(() => {
     if (!signingClient || walletAddress.length === 0) {
@@ -42,7 +44,11 @@ const Send: NextPage = () => {
       .catch((error) => {
         setError(`Error! ${error.message}`)
         console.log('Error signingClient.getBalance(): ', error)
-      })
+      });
+
+    signingClient?.queryContractSmart(PUBLIC_CONTRACT_ADDRESS, { get_all_beneficiaries: {} }).then((beneficiairies: BeneficiaryListResponse) => {
+      setBeneficiariesAmount(beneficiairies.beneficiaries.length);
+    });
   }, [signingClient, walletAddress, loadedAt])
 
   const handleDonate = (event: MouseEvent<HTMLElement>) => {
@@ -76,6 +82,7 @@ const Send: NextPage = () => {
   return (
     <WalletLoader loading={loading}>
       <p className="text-2xl">Your wallet has {balance}</p>
+      <p className="text-2xl">Your donation will benefit {beneficiariesAmount} persons !</p>
 
       <h1 className="text-5xl font-bold my-8">
         How many {convertFromMicroDenom(PUBLIC_STAKING_DENOM)} do you want to donate ?
